@@ -47,7 +47,9 @@ int main(int argc, char *argv[])
     while (1)
     {
         bzero(buffer, BUFFER_SIZE);
+        printf("client: ");
         fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strlen(buffer) - 1] = '\0';
         send(sock, buffer, BUFFER_SIZE, 0);
         bzero(buffer, BUFFER_SIZE);
         bytes_received = recv(sock, buffer, BUFFER_SIZE, 0);

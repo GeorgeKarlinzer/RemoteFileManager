@@ -5,7 +5,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <regex.h>
+
 #include "operations.c"
+#include "strhelper.c"
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
@@ -13,7 +15,6 @@
 void handle_connection(int server_fd, int addrlen);
 int send_protocols(int fd);
 int send_options(int fd);
-void get_argument(char *input, int index, char *output);
 
 int main(int argc, char *argv[])
 {
@@ -89,35 +90,54 @@ void handle_connection(int server_fd, int addrlen)
         recv(client_fd, buffer, BUFFER_SIZE, 0);
         printf("Received command from client %s:%d: %s\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), buffer);
 
-        char *first_arg;
-        get_argument(buffer, 0, first_arg);
-        printf("%s", first_arg);
+        char **argv;
+        int argc;
+        parse_args(buffer, &argv, &argc);
 
-        if (strcmp(first_arg, "help\n") == 0)
+        if (strcmp(argv[0], "help") == 0)
         {
             int size = get_help(buffer);
             send(client_fd, buffer, size, 0);
         }
-        else if (strcmp(first_arg, "ls\n") == 0)
+        else if (strcmp(argv[0], "ls") == 0)
         {
             int size = get_ls(buffer);
             send(client_fd, buffer, size, 0);
         }
-        else if (strcmp(first_arg, "delete") == 0)
+        else if (strcmp(argv[0], "delete") == 0)
         {
-            char *file;
-            get_argument(buffer, 1, file);
-            int size = delete_file(file, buffer);
+            int size = delete_file(argv[1], buffer);
             send(client_fd, buffer, size, 0);
+        }
+        else if (strcmp(argv[0], "rename") == 0)
+        {
+            int size = rename_file(argv[1], argv[2], buffer);
+            send(client_fd, buffer, size, 0);
+        }
+        else if(strcmp(argv[0], "upload") == 0)
+        {
+            int size = upload_file(argv[1], )
         }
         else
         {
             int size = get_unrecognized(buffer);
             send(client_fd, buffer, size, 0);
         }
+
+        for (int i = 0; i < argc; i++)
+        {
+            free(argv[i]);
+        }
+
+        free(argv);
     }
 
     close(client_fd);
+}
+
+int get_bytes(char *buffer, int buffer_size)
+{
+
 }
 
 int send_protocols(int fd)
@@ -133,20 +153,4 @@ int send_options(int fd)
 {
     char options[] = "Select ";
     return send(fd, "test", sizeof("test"), 0);
-}
-
-void get_argument(char *input, int index, char *output)
-{
-    printf("inside");
-    char *first_word = strtok(input, " ");
-    printf("arg: %s", first_word);
-
-    for (int i = 0; i < index; i++)
-    {
-        first_word[0] = ' ';
-        first_word = strtok(NULL, " ");
-        printf("arg: %s", first_word);
-    }
-
-    strcpy(output, first_word);
 }

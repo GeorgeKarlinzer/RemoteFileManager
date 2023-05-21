@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <libgen.h>
 
 #define C_RD "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
@@ -16,26 +17,70 @@
 
 #define BUFFER_SIZE 1024
 
-int upload_file(char *file_name, int file_size, int (*get_bytes)(char *, int), char *output)
+int upload_file(char *file_name, int file_size, int client_fd, char *output)
 {
-    FILE *file = fopen(file_name, "w");
+    char file_path[255];
+    sprintf(file_path, DIRECTORY "%s", basename(file_name));
+    FILE *file = fopen(file_path, "w");
     char buffer[BUFFER_SIZE];
     int total_rcv = 0;
     int bytes_rcv;
 
     while (total_rcv < file_size)
     {
-        bytes_rcv = (*get_bytes)(buffer, BUFFER_SIZE);
+        bytes_rcv = recv(client_fd, buffer, BUFFER_SIZE, 0);
         fwrite(buffer, 1, bytes_rcv, file);
         total_rcv += bytes_rcv;
     }
 
-    strcpy(output, "\tFile was uploaded successfully\n\0");
+    fclose(file);
+    strcpy(output, C_BL "\tFile was uploaded successfully\n" C_RST);
     return strlen(output);
 }
 
-int download_file(char *file_name, char *buffer, int buffer_size)
+int download_file(char *file_name, int client_fd, char *output)
 {
+    if (CHECKFILE(file_name))
+    {
+        FILE *file;
+        char file_path[255];
+        char buffer[BUFFER_SIZE];
+        int file_size, total_sent, bytes_sent;
+
+        sprintf(file_path, DIRECTORY "%s", file_name);
+
+        file = fopen(file_path, "rb");
+        if (file == NULL)
+        {
+            strcpy(output, C_RD "\tCannot download file\n" C_RST);
+            return strlen(output);
+        }
+
+        fseek(file, 0L, SEEK_END);
+        file_size = ftell(file);
+        rewind(file);
+
+        sprintf(buffer, "%d", file_size);
+
+        send(client_fd, buffer, BUFFER_SIZE, 0);
+        total_sent = 0;
+        bytes_sent = 0;
+
+        while (total_sent < file_size)
+        {
+            int bytes_read = fread(buffer, 1, BUFFER_SIZE, file);
+            bytes_sent = send(client_fd, buffer, bytes_read, 0);
+            total_sent += bytes_sent;
+            printf("Sent %d/%d\n", total_sent, file_size);
+        }
+        fclose(file);
+        recv(client_fd, buffer, BUFFER_SIZE, 0);        
+        strcpy(output, C_BL "\tFile was downloaded successfully\n" C_RST);
+        return strlen(output);
+    }
+
+    strcpy(output, C_RD "\tCannot download file\n" C_RST);
+    return strlen(output);
 }
 
 int delete_file(char *file, char *output)
@@ -48,6 +93,7 @@ int delete_file(char *file, char *output)
         if (remove(path) == 0)
         {
             sprintf(output, C_BL "\tFile '%s' deleted successfully.\n" C_RST, file);
+            return strlen(output);
         }
     }
     sprintf(output, C_RD "\tError deleting file '%s'.\n" C_RST, file);

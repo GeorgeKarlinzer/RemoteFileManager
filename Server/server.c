@@ -7,7 +7,7 @@
 #include <regex.h>
 
 #include "operations.c"
-#include "strhelper.c"
+#include "../Core/strhelper.c"
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
@@ -94,6 +94,7 @@ void handle_connection(int server_fd, int addrlen)
         int argc;
         parse_args(buffer, &argv, &argc);
 
+        bzero(buffer, BUFFER_SIZE);
         if (strcmp(argv[0], "help") == 0)
         {
             int size = get_help(buffer);
@@ -116,7 +117,13 @@ void handle_connection(int server_fd, int addrlen)
         }
         else if(strcmp(argv[0], "upload") == 0)
         {
-            int size = upload_file(argv[1], )
+            int size = upload_file(argv[1], atoi(argv[2]), client_fd, buffer);
+            send(client_fd, buffer, size, 0);
+        }
+        else if(strcmp(argv[0], "download") == 0)
+        {
+            int size = download_file(argv[1], client_fd, buffer);
+            send(client_fd, buffer, size, 0);
         }
         else
         {
@@ -133,11 +140,6 @@ void handle_connection(int server_fd, int addrlen)
     }
 
     close(client_fd);
-}
-
-int get_bytes(char *buffer, int buffer_size)
-{
-
 }
 
 int send_protocols(int fd)

@@ -74,7 +74,7 @@ int download_file(char *file_name, int client_fd, char *output)
             printf("Sent %d/%d\n", total_sent, file_size);
         }
         fclose(file);
-        recv(client_fd, buffer, BUFFER_SIZE, 0);        
+        recv(client_fd, buffer, BUFFER_SIZE, 0);
         strcpy(output, C_BL "\tFile was downloaded successfully\n" C_RST);
         return strlen(output);
     }
@@ -122,7 +122,7 @@ int rename_file(char *file, char *new_name, char *output)
     return strlen(output);
 }
 
-int get_ls(char *output)
+void get_ls(char *output)
 {
     DIR *dir;
     struct dirent *entry;
@@ -130,7 +130,8 @@ int get_ls(char *output)
     dir = opendir(DIRECTORY);
     if (dir == NULL)
     {
-        return 0;
+        strcpy(output, C_RD "\tWorking directory does not exist!\n" C_RST);
+        return;
     }
 
     bzero(output, sizeof(output));
@@ -138,7 +139,15 @@ int get_ls(char *output)
     {
         if (entry->d_type == DT_REG)
         {
-            sprintf(output + strlen(output), C_BL "\t%s\n" C_RST, entry->d_name);
+            char *tmp = malloc(strlen(C_BL "\t\n" C_RST "\0") + strlen(entry->d_name) + 1);
+            sprintf(tmp, C_BL "\t%s\n" C_RST "\0", entry->d_name);
+            if (strlen(tmp) + strlen(output) + 1 > BUFFER_SIZE)
+            {
+                free(tmp);
+                break;
+            }
+            sprintf(output + strlen(output), tmp);
+            free(tmp);
         }
     }
 
@@ -146,8 +155,6 @@ int get_ls(char *output)
 
     if (strlen(output) == 0)
         sprintf(output, C_YLW "\tWorking directory is empty\n" C_RST);
-
-    return strlen(output);
 }
 
 int get_help(char *output)
@@ -163,6 +170,13 @@ int get_help(char *output)
     strcpy(output, msg);
 
     return strlen(msg);
+}
+
+int get_exit(char *output)
+{
+    char msg[] = C_BL "\tConnection was closed!\n" C_RST;
+    strcpy(output, msg);
+    return strlen(output);
 }
 
 int get_unrecognized(char *output)

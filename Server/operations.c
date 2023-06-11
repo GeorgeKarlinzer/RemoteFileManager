@@ -19,13 +19,16 @@
 
 int upload_file(char *file_name, int file_size, int client_fd, char *output)
 {
-    // TODO: nie zapisuj kurwa pliku od razu z robocza nazwa bo moze sie cos zpierdolic
-    char file_path[255];
-    sprintf(file_path, DIRECTORY "%s", basename(file_name));
-    FILE *file = fopen(file_path, "w");
+    char tmp_file[20], tmp_path[255], file_path[255];
+    FILE *file;
     char buffer[BUFFER_SIZE];
     int total_rcv = 0;
     int bytes_rcv;
+
+    tmpnam(tmp_file);
+    sprintf(tmp_path, DIRECTORY "%s", tmp_file);
+    sprintf(file_path, DIRECTORY "%s", basename(file_name));
+    file = fopen(tmp_path, "w");
 
     while (total_rcv < file_size)
     {
@@ -35,6 +38,14 @@ int upload_file(char *file_name, int file_size, int client_fd, char *output)
     }
 
     fclose(file);
+
+    if (rename(tmp_path, file_path) != 0)
+    {
+        remove(tmp_path);
+        sprintf(output, C_RD "\tCannot upload file.\n" C_RST);
+        return strlen(output);
+    }
+
     strcpy(output, C_BL "\tFile was uploaded successfully\n" C_RST);
     return strlen(output);
 }
